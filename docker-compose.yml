@@ -1,0 +1,49 @@
+services:
+  proxy:
+    image: localtonet/localtonet:latest
+    command: ["authtoken", "${LOCALNET_TOKEN}"]
+    networks:
+      mc-bedrock-server-net:
+        ipv4_address: 10.5.0.3
+
+  server:
+    image: itzg/minecraft-bedrock-server:latest
+    cpu_count: 4
+    ports:
+      - "19132:19132/udp"
+      - "19132:19132/tcp"
+    expose:
+      - 2222
+    environment:
+      EULA: TRUE
+      VERSION: 1.21.3.01
+      ENABLE_SSH: "TRUE"
+    volumes:
+      - type: bind
+        source: ./data
+        target: /data
+    networks:
+      mc-bedrock-server-net:
+        ipv4_address: 10.5.0.2
+        # Need a static ip for the localtonet tunnel to use
+
+  backup:
+    image: kaiede/minecraft-bedrock-backup:latest
+    restart: always
+    depends_on:
+      - server
+    environment:
+      - TZ=GMT
+    volumes:
+      - ./backups:/data
+      - ./data:/server
+    networks:
+      - mc-bedrock-server-net
+
+networks:
+  mc-bedrock-server-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1
